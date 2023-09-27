@@ -28,6 +28,7 @@ manifest:
   defaults:
     remote: my_zephyr
     
+  group-filter: [-zephyrproject]
   # "projects" is a list of git repositories which make up the NCS
   # source code.
   #
@@ -41,9 +42,53 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/introduction/index.html
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
-      repo-path: sdk-zephyr
+      remote: zephyrproject
+      repo-path: zephyr
       path: zephyr
       revision: main
+      import:
+        # In addition to the zephyr repository itself, NCS also
+        # imports the contents of zephyr/west.yml at the above
+        # revision. Only the projects explicitly named in the
+        # following allowlist are imported.
+        #
+        # Note that the zephyr west extensions (like 'build', 'flash',
+        # 'debug', etc.) are automatically provided by this import, so
+        # there's no need to add a redundant west-commands: key for
+        # the zephyr project.
+        #
+        # Please keep this list sorted alphabetically.
+        name-allowlist:
+          - TraceRecorderSource
+          - canopennode
+          - chre
+          - cmsis
+          - edtt
+          - fatfs
+          - hal_ambiq
+          - hal_nordic
+          - hal_st # required for ST sensors (unrelated to STM32 MCUs)
+          - hal_wurthelektronik
+          - liblc3
+          - libmetal
+          - littlefs
+          - loramac-node
+          - lvgl
+          - lz4
+          - mipi-sys-t
+          - nanopb
+          - net-tools
+          - nrf_hw_models
+          - open-amp
+          - picolibc
+          - psa-arch-tests
+          - segger
+          - tinycbor
+          - tinycrypt
+          - tf-m-tests
+          - uoscore-uedhoc
+          - zcbor
+          - zscilib
 
   self:
     path: am_zephyr
