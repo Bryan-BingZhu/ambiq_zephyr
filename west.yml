@@ -75,6 +75,7 @@ manifest:
           - loramac-node
           - lvgl
           - lz4
+          - mcuboot
           - mipi-sys-t
           - nanopb
           - net-tools
