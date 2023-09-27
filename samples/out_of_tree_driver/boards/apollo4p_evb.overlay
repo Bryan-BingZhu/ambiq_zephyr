@@ -37,4 +37,11 @@ qspi: &mspi0 {
 	reg = <0x40060000 0x400>, <0x14000000 0x400>;
 	reg-names = "qspi", "qspi_mm";
 	status = "okay";
+	ambt53: ambt53@0 {
+		compatible = "custom,ambt53";
+		reg = <0>;
+		max-frequency = <4000000>;
+		spi-bus-width = <4>;
+		status = "okay";
+	};
 };
