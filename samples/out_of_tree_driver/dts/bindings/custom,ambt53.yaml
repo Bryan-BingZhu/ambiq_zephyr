@@ -20,7 +20,7 @@ compatible: "custom,ambt53"
 
 include: [base.yaml]
 
-on-bus: qspi
+# on-bus: qspi
 
 properties:
   reg:

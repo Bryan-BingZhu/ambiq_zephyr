@@ -3,6 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#define DT_DRV_COMPAT custom_ambt53
+
 #include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -17,8 +19,15 @@
  * This is a minimal example of an out-of-tree driver
  * implementation. See the header file of the same name for details.
  */
+struct ambt53_config {
+	uint32_t dqs_en;
+	const struct device *bus;
+	struct gpio_dt_spec reset_gpio;
+	uint32_t spi_bus_width;
+	uint32_t max_frequency;
+};
 
-static struct ambt53_xip_dev_data {
+static struct ambt53_data {
 	const struct device *mspi_dev;
 } xip_data;
 
@@ -31,12 +40,13 @@ static struct mspi_buf g_mspi_buf;
 static int ambt53_remote_init(const struct device *xip_dev, am_hal_mspi_dev_config_t *pConfig, bool bDQSEn);
 static void ambt53_remote_reset(const struct device *xip_dev);
 
-static int init(const struct device *xip_dev)
+static int ambt53_init(const struct device *xip_dev)
 {
 	int ret;
-	struct ambt53_xip_dev_data *data = xip_dev->data;
+	struct ambt53_data *data = xip_dev->data;
+	const struct ambt53_config *config = xip_dev->config;
 
-	data->mspi_dev = DEVICE_DT_GET(DT_NODELABEL(qspi));
+	data->mspi_dev = config->bus;
 	if (!device_is_ready(data->mspi_dev)) {
 		printk("mspi_dev is not ready\n");
 		return -ENODEV;
@@ -99,7 +109,7 @@ static int init(const struct device *xip_dev)
 //*****************************************************************************
 static void ambt53_basic_config_get(const struct device *xip_dev)
 {
-	struct ambt53_xip_dev_data *data = xip_dev->data;
+	struct ambt53_data *data = xip_dev->data;
     uint32_t ui32Ver = 0;
     uint32_t ui32Cfg = 0;
     ambt53_status_reg_t stStatus = {0};
@@ -133,7 +143,7 @@ static void ambt53_basic_config_get(const struct device *xip_dev)
 //*****************************************************************************
 void ambt53_status_get(const struct device *xip_dev, ambt53_status_reg_t *pStatus)
 {
-	struct ambt53_xip_dev_data *data = xip_dev->data;
+	struct ambt53_data *data = xip_dev->data;
 	g_mspi_buf.send_addr = 0;
 	g_mspi_buf.addr = 0;
 	g_mspi_buf.buf = pStatus;
@@ -151,7 +161,7 @@ void ambt53_status_get(const struct device *xip_dev, ambt53_status_reg_t *pStatu
 void ambt53_status_clear(const struct device *xip_dev, ambt53_status_reg_t *pStatus)
 {
     pStatus->STATUS = __bswap_32(pStatus->STATUS);
-	struct ambt53_xip_dev_data *data = xip_dev->data;
+	struct ambt53_data *data = xip_dev->data;
 	g_mspi_buf.send_addr = 0;
 	g_mspi_buf.addr = 0;
 	g_mspi_buf.buf = pStatus;
@@ -168,7 +178,7 @@ void ambt53_status_clear(const struct device *xip_dev, ambt53_status_reg_t *pSta
 static void ambt53_remote_reset(const struct device *xip_dev)
 {
     //Reset to default
-	struct ambt53_xip_dev_data *data = xip_dev->data;
+	struct ambt53_data *data = xip_dev->data;
 	g_mspi_buf.send_addr = 0;
 	g_mspi_buf.addr = 0;
 	g_mspi_buf.buf = NULL;
@@ -186,7 +196,7 @@ static void ambt53_remote_reset(const struct device *xip_dev)
 //*****************************************************************************
 static int ambt53_remote_init(const struct device *xip_dev, am_hal_mspi_dev_config_t *pConfig, bool bDQSEn)
 {
-    struct ambt53_xip_dev_data *data = xip_dev->data;
+    struct ambt53_data *data = xip_dev->data;
 	g_mspi_buf.send_addr = 0;
 	g_mspi_buf.addr = 0;
 	g_mspi_buf.instr = AM_DEVICES_MSPI_AMBT53_SET_DUMMY;
@@ -277,7 +287,22 @@ static struct ambt53_xip_driver_api ambt53_xip_driver_api = {
 	.print = NULL
 	};
 
-DEVICE_DEFINE(ambt53_xip, "AMBT53_XIP_DRIVER",
-		    init, NULL, &xip_data, NULL,
-		    APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
-		    &ambt53_xip_driver_api);
+// DEVICE_DEFINE(ambt53_xip, "AMBT53_XIP_DRIVER",
+// 		    init, NULL, &xip_data, NULL,
+// 		    APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+// 		    &ambt53_xip_driver_api);
+
+#define AMBT53_INIT(index)                                                     \
+	static const struct ambt53_config ambt53_config_##index = {	       \
+		.bus = DEVICE_DT_GET(DT_INST_BUS(index)),			       \
+		.reset_gpio = GPIO_DT_SPEC_INST_GET_OR(index, reset_gpios, {0}),  \
+		.max_frequency = DT_INST_PROP(index, max_frequency),  \
+		.spi_bus_width = DT_INST_PROP(index, spi_bus_width),  \
+		.dqs_en =  DT_INST_PROP(index, dqs_en),		       \
+	};								       \
+	static struct ambt53_data ambt53_data_##index;			       \
+	DEVICE_DT_INST_DEFINE(index, ambt53_init, NULL,			       \
+			    &ambt53_data_##index, &ambt53_config_##index,      \
+			    APPLICATION, CONFIG_CUSTOM_AMBT53_INIT_PRIORITY, &ambt53_xip_driver_api);
+
+DT_INST_FOREACH_STATUS_OKAY(AMBT53_INIT)
