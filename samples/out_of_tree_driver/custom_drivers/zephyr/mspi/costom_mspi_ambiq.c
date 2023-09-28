@@ -21,7 +21,6 @@ LOG_MODULE_REGISTER(custom_ambiq_qspi);
 #define MSPI_TIMEOUT_US      1000000
 #define PWRCTRL_MAX_WAIT_US  5
 #define MSPI_BUSY            BIT(2)
-#define AMBT53_MSPI_DUMMY    32
 #define AM_DEVICES_MSPI_AMBT53_READ_BL4           0xA2
 #define AM_DEVICES_MSPI_AMBT53_WRITE_UL           0x7F
 
@@ -33,12 +32,15 @@ struct mspi_ambiq_config {
 	uint32_t base;
 	uint32_t xipmm_offset;
 	int size;
-	uint32_t clock_freq;
 	const struct pinctrl_dev_config *pcfg;
 	ambiq_mspi_pwr_func_t pwr_func;
 };
 
-#if (MSPI_DQS_EN)
+struct mspi_ambiq_data {
+	void *mspiHandle;
+	am_hal_mspi_dev_config_t mspi_dev_cfg;
+};
+
 am_hal_mspi_dqs_t AMBT53DqsCfg[] =
 {
   {
@@ -92,7 +94,7 @@ am_hal_mspi_dqs_t AMBT53DqsDisable =
     .ui8RxDQSDelayNegHi     = 0,
     .bRxDQSDelayHiEN        = 0,
 };
-#endif
+
 am_hal_mspi_xip_config_t AMBT53XipConfig[] =
 {
   {
@@ -183,6 +185,12 @@ am_hal_mspi_rxcfg_t gMspiRxCfg =
 };
 #endif
 
+uint32_t custom_mspi_get_module_idx(const struct device *dev)
+{
+  const struct mspi_ambiq_config *cfg = dev->config;
+  return (cfg->base - REG_MSPI_BASEADDR) / (cfg->size * 4);
+}
+
 static int mspi_set_freq(uint32_t freq)
 {
 	uint32_t d = MSPI_MAX_FREQ / freq;
@@ -208,53 +216,53 @@ static int mspi_set_freq(uint32_t freq)
 	return d;
 }
 
-static int mspi_config(const struct device *dev, const struct spi_config *config)
+static int mspi_config(const struct device *dev, const struct mspi_config *config)
 {
 	struct mspi_ambiq_data *data = dev->data;
 	int ret;
 	am_hal_mspi_dev_config_t *mspi_dev_cfg = &data->mspi_dev_cfg;
 	const struct mspi_ambiq_config *cfg = dev->config;
 
-	if (config->operation & SPI_HALF_DUPLEX) {
+	if (config->generic_config.operation & SPI_HALF_DUPLEX) {
 		LOG_ERR("Half-duplex not supported");
 		return -ENOTSUP;
 	}
 
-	if (SPI_WORD_SIZE_GET(config->operation) != 8) {
+	if (SPI_WORD_SIZE_GET(config->generic_config.operation) != 8) {
 		LOG_ERR("Word size must be %d", SPI_WORD_SIZE);
 		return -ENOTSUP;
 	}
 
-	if (config->operation & SPI_LOCK_ON) {
+	if (config->generic_config.operation & SPI_LOCK_ON) {
 		LOG_ERR("Lock On not supported");
 		return -ENOTSUP;
 	}
 
-	if (config->operation & SPI_TRANSFER_LSB) {
+	if (config->generic_config.operation & SPI_TRANSFER_LSB) {
 		LOG_ERR("LSB first not supported");
 		return -ENOTSUP;
 	}
 
-	if (config->operation & SPI_MODE_CPOL) {
-		if (config->operation & SPI_MODE_CPHA) {
+	if (config->generic_config.operation & SPI_MODE_CPOL) {
+		if (config->generic_config.operation & SPI_MODE_CPHA) {
 			mspi_dev_cfg->eSpiMode = AM_HAL_IOM_SPI_MODE_3;
 			} else {
 			mspi_dev_cfg->eSpiMode = AM_HAL_IOM_SPI_MODE_2;
 			}
 	} else {
-		if (config->operation & SPI_MODE_CPHA) {
+		if (config->generic_config.operation & SPI_MODE_CPHA) {
 			mspi_dev_cfg->eSpiMode = AM_HAL_IOM_SPI_MODE_1;
 		} else {
 			mspi_dev_cfg->eSpiMode = AM_HAL_IOM_SPI_MODE_0;
 		}
 	}
 
-	mspi_dev_cfg->eClockFreq = mspi_set_freq(config->frequency);
+	mspi_dev_cfg->eClockFreq = mspi_set_freq(config->generic_config.frequency);
 	if (mspi_dev_cfg->eClockFreq == AM_HAL_MSPI_CLK_INVALID) {
 		return -ENOTSUP;
 	}
 
-	switch (config->operation & SPI_LINES_MASK)
+	switch (config->generic_config.operation & SPI_LINES_MASK)
 	{
 	case SPI_LINES_SINGLE:
 		mspi_dev_cfg->eDeviceConfig = AM_HAL_MSPI_FLASH_SERIAL_CE0;
@@ -277,19 +285,27 @@ static int mspi_config(const struct device *dev, const struct spi_config *config
 		return ret;
 	}
 
-    mspi_dev_cfg->ui8TurnAround        = AMBT53_MSPI_DUMMY;
-    mspi_dev_cfg->eAddrCfg             = AM_HAL_MSPI_ADDR_4_BYTE;
-    mspi_dev_cfg->eInstrCfg            = AM_HAL_MSPI_INSTR_1_BYTE;
-    mspi_dev_cfg->bSendInstr           = true;
-    mspi_dev_cfg->bSendAddr            = true;
+  mspi_dev_cfg->eAddrCfg             = AM_HAL_MSPI_ADDR_4_BYTE;
+  mspi_dev_cfg->eInstrCfg            = AM_HAL_MSPI_INSTR_1_BYTE;
+  mspi_dev_cfg->bSendInstr           = true;
+  mspi_dev_cfg->bSendAddr            = true;
+  if (config->dummy_cycles)
+  {
     mspi_dev_cfg->bTurnaround          = true;
-    mspi_dev_cfg->ui16ReadInstr        = AM_DEVICES_MSPI_AMBT53_READ_BL4;
-    mspi_dev_cfg->ui16WriteInstr       = AM_DEVICES_MSPI_AMBT53_WRITE_UL;
-    mspi_dev_cfg->ui8WriteLatency      = 0;
-    mspi_dev_cfg->bEnWriteLatency      = false;
-    mspi_dev_cfg->bEmulateDDR          = false;
-    mspi_dev_cfg->ui16DMATimeLimit     = 0;
-    mspi_dev_cfg->eDMABoundary         = AM_HAL_MSPI_BOUNDARY_NONE;
+    mspi_dev_cfg->ui8TurnAround        = config->dummy_cycles;
+  }
+  else
+  {
+    mspi_dev_cfg->bTurnaround          = false;
+    mspi_dev_cfg->ui8TurnAround        = 0;
+  }
+  mspi_dev_cfg->ui16ReadInstr        = AM_DEVICES_MSPI_AMBT53_READ_BL4;
+  mspi_dev_cfg->ui16WriteInstr       = AM_DEVICES_MSPI_AMBT53_WRITE_UL;
+  mspi_dev_cfg->ui8WriteLatency      = 0;
+  mspi_dev_cfg->bEnWriteLatency      = false;
+  mspi_dev_cfg->bEmulateDDR          = false;
+  mspi_dev_cfg->ui16DMATimeLimit     = 0;
+  mspi_dev_cfg->eDMABoundary         = AM_HAL_MSPI_BOUNDARY_NONE;
 	
 	ret = am_hal_mspi_device_configure(data->mspiHandle, mspi_dev_cfg);
 	if (ret) {
@@ -304,6 +320,13 @@ static int mspi_config(const struct device *dev, const struct spi_config *config
     am_hal_mspi_rxcfg_t RxCfg = gMspiRxCfg;
     ret = am_hal_mspi_control(data->mspiHandle, AM_HAL_MSPI_REQ_RXCFG, &RxCfg);
 #endif
+
+  if (config->dqs_en)
+  {
+    // Note: DQS pin should be properly enabled for this feature
+    am_hal_mspi_dqs_t dqsCfg = AMBT53DqsCfg[custom_mspi_get_module_idx(dev)];
+    ret = am_hal_mspi_control(data->mspiHandle, AM_HAL_MSPI_REQ_DQS, &dqsCfg);
+  }
 
 	return ret;
 }
@@ -401,7 +424,7 @@ static int mspi_pio_read(const struct device *dev,
     return ret;
 }
 
-static int mspi_ambiq_release(const struct device *dev, const struct spi_config *config)
+static int mspi_ambiq_release(const struct device *dev)
 {
 	const struct mspi_ambiq_config *cfg = dev->config;
 	struct mspi_ambiq_data *data = dev->data;
@@ -432,8 +455,7 @@ int custom_mspi_enable_xip(const struct device *dev)
 {
   int ret;
   struct mspi_ambiq_data *data = dev->data;
-  const struct mspi_ambiq_config *cfg = dev->config;
-  uint32_t module_idx = (cfg->base - REG_MSPI_BASEADDR) / (cfg->size * 4);
+  uint32_t module_idx = custom_mspi_get_module_idx(dev);
 
 	do
 	{
@@ -473,8 +495,7 @@ int am_devices_mspi_ambt53_disable_xip(const struct device *dev)
 {
   int ret;
   struct mspi_ambiq_data *data = dev->data;
-  const struct mspi_ambiq_config *cfg = dev->config;
-  uint32_t module_idx = (cfg->base - REG_MSPI_BASEADDR) / (cfg->size * 4);
+  uint32_t module_idx = custom_mspi_get_module_idx(dev);
 
   //
   // Disable XIP on the MSPI.
@@ -500,16 +521,15 @@ static inline void z_vrfy_custom_mspi_read(const struct device *dev,
 #include <syscalls/custom_mspi_read_mrsh.c>
 
 static inline void z_vrfy_custom_mspi_config(const struct device *dev,
-				     const struct spi_config *config)
+				     const struct mspi_config *config)
 {
-	z_impl_custom_mspi_config(dev, tx_bufs);
+	z_impl_custom_mspi_config(dev, config);
 }
 #include <syscalls/custom_mspi_config_mrsh.c>
 
-static inline void z_vrfy_custom_mspi_release(const struct device *dev,
-				     const struct spi_config *config)
+static inline void z_vrfy_custom_mspi_release(const struct device *dev)
 {
-	z_impl_custom_mspi_release(dev, tx_bufs);
+	z_impl_custom_mspi_release(dev, config);
 }
 #include <syscalls/custom_mspi_release_mrsh.c>
 #endif /* CONFIG_USERSPACE */
@@ -522,7 +542,7 @@ static int mspi_ambiq_init(const struct device *dev)
 
 	mspiCfg.pTCB = NULL;
 
-	int ret = am_hal_mspi_initialize((cfg->base - REG_MSPI_BASEADDR) / (cfg->size * 4),
+	int ret = am_hal_mspi_initialize(custom_mspi_get_module_idx(dev),
 					 &data->mspiHandle);
 	if (ret) {
 		return ret;

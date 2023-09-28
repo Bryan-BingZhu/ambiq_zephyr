@@ -41,9 +41,13 @@ static int ambt53_init(const struct device *xip_dev)
 {
 	int ret;
 	const struct ambt53_config *config = xip_dev->config;
-	struct spi_config spi_cfg = {
-	.operation = SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_MODE_CPHA | SPI_WORD_SET(8),
-	.frequency = config->max_frequency,
+	struct mspi_config mspi_cfg = {
+		.dqs_en = config->dqs_en,
+		.dummy_cycles = config->dummy_cycles,
+		.generic_config = {
+			.operation = SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_MODE_CPHA | SPI_WORD_SET(8),
+			.frequency = config->max_frequency,
+		}
 	};
 
 	if (!device_is_ready(config->bus)) {
@@ -51,7 +55,7 @@ static int ambt53_init(const struct device *xip_dev)
 		return -ENODEV;
 	}
 
-	ret = custom_mspi_config(config->bus, &spi_cfg);
+	ret = custom_mspi_config(config->bus, &mspi_cfg);
 	if (ret < 0) {
 		printk("SPI configure error: %d\n", ret);
 	}
@@ -81,24 +85,23 @@ static int ambt53_init(const struct device *xip_dev)
 	// Switch MSPI to Quad/Octol mode if device spi width is 
 	if(config->spi_bus_width != OSPI_SPI_MODE)
 	{
-		spi_cfg.operation &= (~SPI_LINES_MASK);
+		mspi_cfg.generic_config.operation &= (~SPI_LINES_MASK);
 		switch (config->spi_bus_width)
 		{
 		case OSPI_DUAL_MODE:
-			spi_cfg.operation |= SPI_LINES_DUAL;
+			mspi_cfg.generic_config.operation |= SPI_LINES_DUAL;
 			break;
 		case OSPI_QUAD_MODE:
-			spi_cfg.operation |= SPI_LINES_QUAD;
+			mspi_cfg.generic_config.operation |= SPI_LINES_QUAD;
 			break;
 		case OSPI_OPI_MODE:
-			spi_cfg.operation |= SPI_LINES_OCTAL;
+			mspi_cfg.generic_config.operation |= SPI_LINES_OCTAL;
 			break;
 		}
-		printk("QSPI configure =: 0x%x\n", spi_cfg.operation);
-		
+		printk("QSPI configure =: 0x%x\n", mspi_cfg.generic_config.operation);
 	}
 	
-	ret = custom_mspi_config(config->bus, &spi_cfg);
+	ret = custom_mspi_config(config->bus, &mspi_cfg);
 	if (ret < 0) {
 		printk("QSPI configure error: %d\n", ret);
 	}
@@ -287,6 +290,6 @@ static struct ambt53_xip_driver_api ambt53_xip_driver_api = {
 	static struct ambt53_data ambt53_data_##index;			       \
 	DEVICE_DT_INST_DEFINE(index, ambt53_init, NULL,			       \
 			    &ambt53_data_##index, &ambt53_config_##index,      \
-			    APPLICATION, CONFIG_CUSTOM_AMBT53_INIT_PRIORITY, &ambt53_xip_driver_api);
+			    POST_KERNEL, CONFIG_CUSTOM_AMBT53_INIT_PRIORITY, &ambt53_xip_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(AMBT53_INIT)

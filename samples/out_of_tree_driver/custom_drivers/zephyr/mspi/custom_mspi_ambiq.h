@@ -16,11 +16,6 @@ extern "C" {
 
 #define PINCTRL_STATE_QUAD PINCTRL_STATE_PRIV_START
 
-struct mspi_ambiq_data {
-	void *mspiHandle;
-	am_hal_mspi_dev_config_t mspi_dev_cfg;
-};
-
 /**
  * @brief SPI buffer structure
  *
@@ -39,6 +34,11 @@ struct mspi_buf {
 	void *buf;
 };
 
+struct mspi_config {
+	bool dqs_en;
+	uint32_t dummy_cycles;
+	struct spi_config generic_config;
+};
 /**
  * @typedef spi_api_io
  * @brief Callback API for write
@@ -61,15 +61,14 @@ typedef int (*mspi_api_rd)(const struct device *dev,
  * See mspi_config() for argument descriptions
  */
 typedef int (*mspi_api_config)(const struct device *dev,
-			       const struct spi_config *config);
+			       const struct mspi_config *config);
 
 /**
  * @typedef mspi_api_release
  * @brief Callback API for unlocking SPI device.
  * See mspi_release() for argument descriptions
  */
-typedef int (*mspi_api_release)(const struct device *dev,
-			       const struct spi_config *config);
+typedef int (*mspi_api_release)(const struct device *dev);
 
 
 /**
@@ -153,10 +152,10 @@ static inline int z_impl_custom_mspi_read(const struct device *dev,
  * @retval -errno Negative errno code on failure.
  */
 __syscall int custom_mspi_config(const struct device *dev,
-			  const struct spi_config *config);
+			  const struct mspi_config *config);
 
 static inline int z_impl_custom_mspi_config(const struct device *dev,
-				     const struct spi_config *config)
+				     const struct mspi_config *config)
 {
 	const struct mspi_driver_api *api =
 		(const struct mspi_driver_api *)dev->api;
@@ -184,16 +183,14 @@ static inline int z_impl_custom_mspi_config(const struct device *dev,
  * @retval 0 If successful.
  * @retval -errno Negative errno code on failure.
  */
-__syscall int custom_mspi_release(const struct device *dev,
-			  const struct spi_config *config);
+__syscall int custom_mspi_release(const struct device *dev);
 
-static inline int z_impl_custom_mspi_release(const struct device *dev,
-				     const struct spi_config *config)
+static inline int z_impl_custom_mspi_release(const struct device *dev)
 {
 	const struct mspi_driver_api *api =
 		(const struct mspi_driver_api *)dev->api;
 
-	return api->release(dev, config);
+	return api->release(dev);
 }
 #include <syscalls/custom_mspi_ambiq.h>
 
