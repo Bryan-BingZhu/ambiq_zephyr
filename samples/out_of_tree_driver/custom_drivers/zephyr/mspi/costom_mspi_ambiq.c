@@ -7,7 +7,7 @@
 #define DT_DRV_COMPAT custom_ambiq_qspi
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(custom_ambiq_qspi);
+LOG_MODULE_REGISTER(ambiq_qspi);
 
 #include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/pinctrl.h>

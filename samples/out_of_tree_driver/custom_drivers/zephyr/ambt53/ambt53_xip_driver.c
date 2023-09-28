@@ -5,17 +5,20 @@
  */
 #define DT_DRV_COMPAT custom_ambt53
 
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(ambt53);
+
 #include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include "ambt53_xip_driver.h"
 #include <zephyr/types.h>
 #include <zephyr/drivers/spi.h>
-#include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/dt-bindings/flash_controller/ospi.h>
 #include "custom_mspi_ambiq.h"
 #include <am_mcu_apollo.h>
+
 /**
  * This is a minimal example of an out-of-tree driver
  * implementation. See the header file of the same name for details.
@@ -51,71 +54,50 @@ static int ambt53_init(const struct device *xip_dev)
 	};
 
 	if (!device_is_ready(config->bus)) {
-		printk("mspi_dev is not ready\n");
+		LOG_ERR("mspi_dev is not ready");
 		return -ENODEV;
 	}
 
-	ret = custom_mspi_config(config->bus, &mspi_cfg);
-	if (ret < 0) {
-		printk("SPI configure error: %d\n", ret);
-	}
-
-	uint8_t header_master[6] = { 0xF1,0xF2,0xF3,0xF4,0xF5, 0xF6 };
-	
-	g_mspi_buf.buf = header_master;
-	g_mspi_buf.len = 6;
-	g_mspi_buf.send_addr = 1;
-	g_mspi_buf.instr = 0xAB;
-	g_mspi_buf.addr = 0x88776655;
-	ret = custom_mspi_write(config->bus, &g_mspi_buf);
-	if (ret < 0) {
-		printk("SPI write error: %d\n", ret);
-	}
-	ret = custom_mspi_read(config->bus, &g_mspi_buf);
-	if (ret < 0) {
-		printk("SPI read error: %d\n", ret);
-	}
-	for (uint32_t i = 0; i < 5; i++)
-	{
-		printk("g_mspi_buf=%d:", header_master[i]);
-	}
-
-	ambt53_remote_reset(xip_dev);
-	ambt53_remote_init(xip_dev);
-	// Switch MSPI to Quad/Octol mode if device spi width is 
-	if(config->spi_bus_width != OSPI_SPI_MODE)
-	{
-		mspi_cfg.generic_config.operation &= (~SPI_LINES_MASK);
-		switch (config->spi_bus_width)
-		{
-		case OSPI_DUAL_MODE:
-			mspi_cfg.generic_config.operation |= SPI_LINES_DUAL;
-			break;
-		case OSPI_QUAD_MODE:
-			mspi_cfg.generic_config.operation |= SPI_LINES_QUAD;
-			break;
-		case OSPI_OPI_MODE:
-			mspi_cfg.generic_config.operation |= SPI_LINES_OCTAL;
+	do{
+		ret = custom_mspi_config(config->bus, &mspi_cfg);
+		if (ret != 0) {
+			LOG_ERR("SPI configure error: %d\n", ret);
 			break;
 		}
-		printk("QSPI configure =: 0x%x\n", mspi_cfg.generic_config.operation);
-	}
-	
-	ret = custom_mspi_config(config->bus, &mspi_cfg);
-	if (ret < 0) {
-		printk("QSPI configure error: %d\n", ret);
-	}
 
-	ret = custom_mspi_enable_xip(config->bus);
-	if (ret < 0) {
-		printk("Enable XIP error: %d\n", ret);
-	}
-	#define MSPI_XIPMM_BASE_ADDRESS          0x14000000
-	uint32_t read_reg = 0xFFFFFFFF;
-	read_reg = *(volatile uint32_t*)(MSPI_XIPMM_BASE_ADDRESS + 0x03000020);
-	printk("\nread_reg=0x%x\n", read_reg);
-	*(volatile uint32_t*)(MSPI_XIPMM_BASE_ADDRESS + 0x03000020) = 0x89ABCDEF;
-	return 0;
+		ambt53_remote_reset(xip_dev);
+		ambt53_remote_init(xip_dev);
+		// Switch MSPI to Quad/Octol mode if device spi width is 
+		if(config->spi_bus_width != OSPI_SPI_MODE)
+		{
+			mspi_cfg.generic_config.operation &= (~SPI_LINES_MASK);
+			switch (config->spi_bus_width)
+			{
+			case OSPI_DUAL_MODE:
+				mspi_cfg.generic_config.operation |= SPI_LINES_DUAL;
+				break;
+			case OSPI_QUAD_MODE:
+				mspi_cfg.generic_config.operation |= SPI_LINES_QUAD;
+				break;
+			case OSPI_OPI_MODE:
+				mspi_cfg.generic_config.operation |= SPI_LINES_OCTAL;
+				break;
+			}
+			ret = custom_mspi_config(config->bus, &mspi_cfg);
+			if (ret != 0) {
+				LOG_ERR("SPI reconfigure error: %d\n", ret);
+				break;
+			}
+		}
+
+		ret = custom_mspi_enable_xip(config->bus);
+		if (ret != 0) {
+			LOG_ERR("Enable XIP error: %d\n", ret);
+			break;
+		}
+	}while(0);
+
+	return ret;
 }
 
 
@@ -142,14 +124,14 @@ static void ambt53_basic_config_get(const struct device *xip_dev)
     custom_mspi_read(config->bus, &g_mspi_buf);
     if ( (ui32Ver == 0) || (ui32Cfg == 0) )
     {
-        printk("The xSPI IP is not working! Please check your hardware...\n");
-        while (1);
+		LOG_ERR("The xSPI IP is not working! Please check your hardware...\n");
+        return;
     }
-    printk("xSPI IP version: %d.%d.%d\n", (ui32Ver & 0xFF), ((ui32Ver & 0xFF00) >> 8), ((ui32Ver & 0xFF0000) >> 16));
-    printk("AHB_DW: %d\n", (ui32Cfg & 0xFF000000) >> 24);
+    LOG_INF("xSPI IP version: %d.%d.%d\n", (ui32Ver & 0xFF), ((ui32Ver & 0xFF00) >> 8), ((ui32Ver & 0xFF0000) >> 16));
+    LOG_INF("AHB_DW: %d\n", (ui32Cfg & 0xFF000000) >> 24);
 
     ambt53_status_get(xip_dev, &stStatus);
-    printk("xSPI transfer status: 0x%08X\r\n", stStatus.STATUS);
+    LOG_INF("xSPI transfer status: 0x%08X\r\n", stStatus.STATUS);
     ambt53_status_clear(xip_dev, &stStatus);
 }
 
