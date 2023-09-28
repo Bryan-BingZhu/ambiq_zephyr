@@ -1,3 +1,5 @@
+#include <zephyr/dt-bindings/flash_controller/ospi.h>
+
 &pinctrl {
 	mspi0_default: mspi0_default{
 		group1 {
@@ -41,7 +43,8 @@ qspi: &mspi0 {
 		compatible = "custom,ambt53";
 		reg = <0>;
 		max-frequency = <4000000>;
-		spi-bus-width = <4>;
+		dummy-cycles = <32>;
+		spi-bus-width = <OSPI_QUAD_MODE>;
 		status = "okay";
 	};
 };

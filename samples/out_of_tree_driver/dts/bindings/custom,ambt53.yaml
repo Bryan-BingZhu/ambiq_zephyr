@@ -30,6 +30,10 @@ properties:
     type: int
     required: true
     description: Maximum clock frequency of device's SPI/QSPI/OSPI interface in Hz
+  dummy-cycles:
+    type: int
+    required: true
+    description: Dummy cycles required for preparing data for read operation
   reset-gpios:
     type: phandle-array
     description: RESETn pin
