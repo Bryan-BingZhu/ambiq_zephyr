@@ -30,7 +30,7 @@ struct ambt53_config {
 };
 
 struct ambt53_data {
-	const struct device *mspi_dev;
+	uint32_t xipmm_offset;
 };
 
 static struct mspi_buf g_mspi_buf;
@@ -287,7 +287,9 @@ static struct ambt53_xip_driver_api ambt53_xip_driver_api = {
 		.dummy_cycles =  DT_INST_PROP(index, dummy_cycles),		       \
 		.dqs_en =  DT_INST_PROP(index, dqs_en),		       \
 	};								       \
-	static struct ambt53_data ambt53_data_##index;			       \
+	static struct ambt53_data ambt53_data_##index = {		\
+		.xipmm_offset = DT_REG_ADDR_BY_NAME(DT_INST_BUS(index), qspi_mm),\
+	};			       \
 	DEVICE_DT_INST_DEFINE(index, ambt53_init, NULL,			       \
 			    &ambt53_data_##index, &ambt53_config_##index,      \
 			    POST_KERNEL, CONFIG_CUSTOM_AMBT53_INIT_PRIORITY, &ambt53_xip_driver_api);
