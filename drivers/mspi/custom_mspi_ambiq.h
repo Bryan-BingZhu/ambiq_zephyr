@@ -94,10 +94,8 @@ __subsystem struct mspi_driver_api {
  * @retval 0 If successful.
  * @retval -errno Negative errno code on failure.
  */
-__syscall int custom_mspi_write(const struct device *dev,
-			     const struct mspi_buf *tx_bufs);
 
-static inline int z_impl_custom_mspi_write(const struct device *dev,
+static inline int custom_mspi_write(const struct device *dev,
 					const struct mspi_buf *tx_bufs)
 {
 	const struct mspi_driver_api *api =
@@ -122,10 +120,8 @@ static inline int z_impl_custom_mspi_write(const struct device *dev,
  * @retval 0 If successful.
  * @retval -errno Negative errno code on failure.
  */
-__syscall int custom_mspi_read(const struct device *dev,
-			     const struct mspi_buf *rx_bufs);
 
-static inline int z_impl_custom_mspi_read(const struct device *dev,
+static inline int custom_mspi_read(const struct device *dev,
 					const struct mspi_buf *rx_bufs)
 {
 	const struct mspi_driver_api *api =
@@ -150,10 +146,8 @@ static inline int z_impl_custom_mspi_read(const struct device *dev,
  * @retval 0 If successful.
  * @retval -errno Negative errno code on failure.
  */
-__syscall int custom_mspi_config(const struct device *dev,
-			  const struct mspi_config *config);
 
-static inline int z_impl_custom_mspi_config(const struct device *dev,
+static inline int custom_mspi_config(const struct device *dev,
 				     const struct mspi_config *config)
 {
 	const struct mspi_driver_api *api =
@@ -182,16 +176,14 @@ static inline int z_impl_custom_mspi_config(const struct device *dev,
  * @retval 0 If successful.
  * @retval -errno Negative errno code on failure.
  */
-__syscall int custom_mspi_release(const struct device *dev);
 
-static inline int z_impl_custom_mspi_release(const struct device *dev)
+static inline int custom_mspi_release(const struct device *dev)
 {
 	const struct mspi_driver_api *api =
 		(const struct mspi_driver_api *)dev->api;
 
 	return api->release(dev);
 }
-#include <syscalls/custom_mspi_ambiq.h>
 
 int custom_mspi_enable_xip(const struct device *dev);
 

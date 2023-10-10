@@ -504,35 +504,6 @@ int am_devices_mspi_ambt53_disable_xip(const struct device *dev)
   return ret;
 }
 
-#ifdef CONFIG_USERSPACE
-static inline void z_vrfy_custom_mspi_write(const struct device *dev,
-			     const struct mspi_buf *tx_bufs)
-{
-	z_impl_custom_mspi_write(dev, tx_bufs);
-}
-#include <syscalls/custom_mspi_write_mrsh.c>
-
-static inline void z_vrfy_custom_mspi_read(const struct device *dev,
-			     const struct mspi_buf *rx_bufs)
-{
-	z_impl_custom_mspi_read(dev, rx_bufs);
-}
-#include <syscalls/custom_mspi_read_mrsh.c>
-
-static inline void z_vrfy_custom_mspi_config(const struct device *dev,
-				     const struct mspi_config *config)
-{
-	z_impl_custom_mspi_config(dev, config);
-}
-#include <syscalls/custom_mspi_config_mrsh.c>
-
-static inline void z_vrfy_custom_mspi_release(const struct device *dev)
-{
-	z_impl_custom_mspi_release(dev, config);
-}
-#include <syscalls/custom_mspi_release_mrsh.c>
-#endif /* CONFIG_USERSPACE */
-
 static int mspi_ambiq_init(const struct device *dev)
 {
 	struct mspi_ambiq_data *data = dev->data;
