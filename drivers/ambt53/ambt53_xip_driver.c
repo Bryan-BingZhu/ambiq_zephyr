@@ -1,8 +1,9 @@
 /*
- * Copyright (c) 2019 Nordic Semiconductor
- *
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) 2023 Ambiq Micro, Inc.
+ * All rights reserved.
+ * 
  */
+
 #define DT_DRV_COMPAT custom_ambt53
 
 #include <zephyr/logging/log.h>

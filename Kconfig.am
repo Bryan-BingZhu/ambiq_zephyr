@@ -1,0 +1,21 @@
+#
+# Copyright (c) 2023 Ambiq Micro, Inc.
+# All rights reserved.
+#
+
+# Usually BOARD_DIR is an absolute path and sourced through '<ZEPHYR_ROOT>/boards/Kconfig'.
+# But for compliance and doc generation it's a glob and this line ensures that
+# boards in this sdk are sourced properly in those occasions.
+orsource "./$(BOARD_DIR)/Kconfig.board"
+orsource "./$(BOARD_DIR)/Kconfig"
+
+menu "Ambiq Zephyr"
+
+# Ambiq SDK default experimental warnings to on.
+config WARN_EXPERIMENTAL
+	default y
+
+rsource "samples/Kconfig"
+rsource "drivers/Kconfig"
+
+endmenu

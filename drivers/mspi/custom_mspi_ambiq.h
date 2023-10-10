@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2019 Nordic Semiconductor
- *
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) 2023 Ambiq Micro, Inc.
+ * All rights reserved.
  */
 #ifndef __CUSTOM_MSPI_AMBIQ_H__
 #define __CUSTOM_MSPI_AMBIQ_H__

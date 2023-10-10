@@ -1,5 +1,7 @@
-# Copyright (c) 2019 Nordic Semiconductor
-# SPDX-License-Identifier: Apache-2.0
+
+# Copyright (c) 2023 Ambiq Micro, Inc.
+# All rights reserved.
+
 
 menuconfig AMBT53_XIP_DRIVER
     bool "AMBT53 driver"

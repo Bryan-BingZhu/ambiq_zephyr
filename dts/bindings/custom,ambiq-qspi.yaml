@@ -1,15 +1,16 @@
-# Copyright (c) 2019 Nordic Semiconductor ASA
-# SPDX-License-Identifier: Apache-2.0
+
+# Copyright (c) 2023 Ambiq Micro, Inc.
+# All rights reserved.
 
 description: |
-    Properties defining the interface for the Nordic QSPI peripheral.
+    Properties defining the interface for the Ambiq QSPI peripheral.
 
     The reg property describes two register blocks: one for the memory
     corresponding to the QSPI peripheral registers, and another for
     the memory mapped XIP area:
 
         qspi: qspi@2b000 {
-                compatible = "nordic,nrf-qspi";
+                compatible = "custom,ambiq-qspi";
                 reg = <0x2b000 0x1000>, <0x10000000 0x10000000>;
                 reg-names = "qspi", "qspi_mm";
                 ...
