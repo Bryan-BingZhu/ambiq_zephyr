@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2023 Ambiq Micro, Inc.
  * All rights reserved.
- * 
  */
 
 #define DT_DRV_COMPAT custom_ambt53
@@ -107,7 +106,7 @@ static int ambt53_init(const struct device *xip_dev)
 //  Get the ambt53 xSPI basic configuration.
 //
 //*****************************************************************************
-static void ambt53_basic_config_get(const struct device *xip_dev)
+void ambt53_basic_config_get(const struct device *xip_dev)
 {
 	const struct ambt53_config *config = xip_dev->config;
     uint32_t ui32Ver = 0;
